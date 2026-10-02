@@ -14,7 +14,16 @@
   </head>
   <body data-state="idle">
     <main class="shell">
-      <header><span class="eyebrow">EAR-SIDE CONVERSATION COACH</span><h1>Respect Talk <em>AI</em></h1><p>相手の声から返す言葉まで、端末内で確認できます。</p></header>
+      <header><span class="eyebrow">EAR-SIDE CONVERSATION COACH</span><h1>Respect Talk <em>AI</em></h1><p>相手の声から返す言葉まで、その場でサポートします。</p></header>
+
+      <section class="card ai-card" aria-labelledby="ai-title">
+        <div class="row"><h2 id="ai-title">AIモード</h2><strong id="ai-mode" class="mode-badge rule">🔵 ルールベース</strong></div>
+        <p id="capability-result" class="small">端末の機能を確認中です。</p>
+        <p><strong>モデル容量：約400MB</strong><br><span class="small">初回のみ通信が必要です。自動ではダウンロードしません。</span></p>
+        <button id="prepare-ai" class="primary wide">生成AIモデルを準備</button>
+        <div id="model-progress-wrap" hidden><div class="meter"><span id="model-progress"></span></div><p id="model-progress-label" class="progress-label">0%</p></div>
+        <label class="mode-select">開発・診断用モード <select id="mode-select"><option value="auto">自動（生成AI優先）</option><option value="local">ローカル生成AI</option><option value="rule">ルールベース</option></select></label>
+      </section>
 
       <section class="card connection-card" aria-labelledby="connection-title">
         <h2 id="connection-title">接続確認</h2>
@@ -37,7 +46,7 @@
       <section class="status-panel" aria-live="polite">
         <p class="panel-kicker">現在状態</p>
         <div id="status-icon" class="status-icon">🎙</div>
-        <p id="status-label" class="status-label">IDLE</p>
+        <p id="status-label" class="status-label">待機中</p>
         <p id="status-help">イヤホンを確認して、対話サポートを開始してください</p>
         <div class="pulse" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
       </section>
@@ -49,13 +58,13 @@
 
       <section class="card analysis-card" aria-live="polite">
         <div class="result-heading"><h2>Respect Talk判定</h2><span id="category-badge" class="badge">未判定</span></div>
-        <dl><div><dt>感情</dt><dd id="emotion">—</dd></div><div><dt>会話意図</dt><dd id="intent">—</dd></div><div><dt>推奨行動</dt><dd id="action">—</dd></div></dl>
+        <dl><div><dt>感情</dt><dd id="emotion">—</dd></div><div><dt>会話意図</dt><dd id="intent">—</dd></div><div><dt>相手が求めていること</dt><dd id="need">—</dd></div><div><dt>推奨</dt><dd id="action">—</dd></div></dl>
       </section>
 
       <section class="card replies-card" aria-live="polite">
-        <h2>生成された返答候補</h2>
+        <h2>💡 耳元提案</h2>
         <ol id="suggestions"><li class="placeholder">まだ返答案はありません</li></ol>
-        <button id="speak-candidate" class="secondary wide" disabled>候補1をイヤホンで聞く</button>
+        <label class="switch-row">自動読み上げ <input id="auto-speak" type="checkbox" checked><span>ON / OFF</span></label>
       </section>
 
       <section class="card speech-card" aria-live="polite">
@@ -69,6 +78,11 @@
           <div><span>音声認識</span><strong id="recognition-status">待機</strong></div>
           <div><span>認識エラー</span><strong id="recognition-error">なし</strong></div>
           <div><span>日本語音声</span><strong id="voice-status">確認中</strong></div>
+          <div><span>ローカルAI入力文章</span><strong id="ai-input">なし</strong></div>
+          <div><span>AI処理</span><strong id="ai-processing">待機</strong></div>
+          <div><span>AI処理時間</span><strong id="ai-time">—</strong></div>
+          <div><span>生成結果</span><strong id="ai-output">なし</strong></div>
+          <div><span>SpeechSynthesis</span><strong id="tts-event">待機</strong></div>
         </div>
         <p id="diagnostic-message" class="diagnostic-message">開始ボタンを押すと各段階を確認できます。</p>
       </section>
@@ -80,7 +94,7 @@
         <div class="demo-actions"><button id="run-demo" class="primary">解析テスト</button><button id="speak-demo" class="secondary" disabled>候補1をイヤホンで聞く</button></div>
       </section>
 
-      <footer>音声はブラウザ機能と端末内ルールで処理します。APIキー・有料APIは使用しません。</footer>
+      <footer><strong>会話内容は生成AI APIへ送信していません。</strong><br>音声認識の処理方式はブラウザ・OSによって異なります。APIキー・有料APIは使用しません。</footer>
     </main>
     <script type="module" src="./src/app.js"></script>
   </body>

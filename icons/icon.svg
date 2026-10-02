@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Respect Talk AI</title>
+  <desc id="description">深い青色の背景に、耳元の会話を表すミント色の吹き出しと音声波形</desc>
+  <rect width="512" height="512" rx="112" fill="#071521"/>
+  <path fill="#57e3c2" d="M104 104h304a48 48 0 0 1 48 48v168a48 48 0 0 1-48 48H268l-92 72v-72h-72a48 48 0 0 1-48-48V152a48 48 0 0 1 48-48Z"/>
+  <g fill="#102a43">
+    <rect x="132" y="226" width="28" height="54" rx="14"/>
+    <rect x="184" y="190" width="28" height="126" rx="14"/>
+    <rect x="236" y="154" width="28" height="198" rx="14"/>
+    <rect x="288" y="190" width="28" height="126" rx="14"/>
+    <rect x="340" y="226" width="28" height="54" rx="14"/>
+  </g>
+</svg>

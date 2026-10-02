@@ -17,4 +17,4 @@ export function analyzeMessage(rawText) {
   return { text, emotion: '穏やか', intent: '出来事や考えを共有したい', action: '相槌', replies: ['そうなんだ。', 'なるほど、そういうことか。', 'それで、どうなったの？'] };
 }
 
-export const STATES = Object.freeze({ IDLE: 'idle', LISTENING: 'listening', PROCESSING: 'processing', SPEAKING: 'speaking' });
+export const STATES = Object.freeze({ IDLE: 'idle', LISTENING: 'listening', RECOGNIZED: 'recognized', PROCESSING: 'processing', SPEAKING: 'speaking' });

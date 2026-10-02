@@ -12,39 +12,75 @@
     <link rel="stylesheet" href="./src/styles.css" />
     <title>Respect Talk AI</title>
   </head>
-  <body>
+  <body data-state="idle">
     <main class="shell">
-      <header><span class="eyebrow">EAR-SIDE CONVERSATION COACH</span><h1>Respect Talk <em>AI</em></h1><p>会話をさえぎらず、次のひと言をそっと耳元へ。</p></header>
+      <header><span class="eyebrow">EAR-SIDE CONVERSATION COACH</span><h1>Respect Talk <em>AI</em></h1><p>相手の声から返す言葉まで、端末内で確認できます。</p></header>
 
-      <section class="card headphone-card" aria-labelledby="headphone-title">
-        <div><h2 id="headphone-title">🎧 イヤホン確認</h2><p>iPhoneの音声出力先でBluetoothイヤホンを選んでください。</p></div>
-        <button id="audio-test" class="secondary">音声テスト</button>
+      <section class="card connection-card" aria-labelledby="connection-title">
+        <h2 id="connection-title">接続確認</h2>
+        <p>BluetoothイヤホンはiPhoneの設定で接続してください。</p>
+        <p class="small">このWebアプリは、iOSが選択している音声出力先を利用します。</p>
+      </section>
+
+      <button id="audio-test" class="test-button">🔊 イヤホン音声テスト</button>
+
+      <section class="session-controls" aria-label="対話サポート操作">
+        <button id="toggle-session" class="primary wide">対話サポート開始</button>
+        <p id="support-note" class="support-note" role="alert" hidden></p>
+      </section>
+
+      <section class="card meter-card" aria-labelledby="meter-title">
+        <div class="row"><h2 id="meter-title">マイク入力レベル</h2><strong id="mic-percent">0%</strong></div>
+        <div id="mic-meter" class="meter" role="meter" aria-label="マイク入力レベル" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
       </section>
 
       <section class="status-panel" aria-live="polite">
+        <p class="panel-kicker">現在状態</p>
         <div id="status-icon" class="status-icon">🎙</div>
-        <p id="status-label" class="status-label">開始前です</p>
-        <p id="status-help">イヤホンを確認して、会話サポートを開始してください</p>
+        <p id="status-label" class="status-label">IDLE</p>
+        <p id="status-help">イヤホンを確認して、対話サポートを開始してください</p>
         <div class="pulse" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-        <button id="toggle-session" class="primary">会話サポートを開始</button>
-        <p id="support-note" class="support-note" hidden></p>
       </section>
 
-      <section id="result" class="card result-card" hidden aria-live="polite">
-        <div class="result-heading"><span>会話メモ</span><span id="category-badge" class="badge"></span></div>
-        <p id="transcript" class="transcript"></p>
-        <dl><div><dt>感情</dt><dd id="emotion"></dd></div><div><dt>会話意図</dt><dd id="intent"></dd></div><div><dt>推奨対応</dt><dd id="action"></dd></div></dl>
-        <h3>次のひと言</h3><ol id="suggestions"></ol>
+      <section class="card transcript-card" aria-live="polite">
+        <h2>認識した相手の発言</h2>
+        <p id="transcript" class="transcript empty">まだ認識されていません</p>
+      </section>
+
+      <section class="card analysis-card" aria-live="polite">
+        <div class="result-heading"><h2>Respect Talk判定</h2><span id="category-badge" class="badge">未判定</span></div>
+        <dl><div><dt>感情</dt><dd id="emotion">—</dd></div><div><dt>会話意図</dt><dd id="intent">—</dd></div><div><dt>推奨行動</dt><dd id="action">—</dd></div></dl>
+      </section>
+
+      <section class="card replies-card" aria-live="polite">
+        <h2>生成された返答候補</h2>
+        <ol id="suggestions"><li class="placeholder">まだ返答案はありません</li></ol>
+        <button id="speak-candidate" class="secondary wide" disabled>候補1をイヤホンで聞く</button>
+      </section>
+
+      <section class="card speech-card" aria-live="polite">
+        <h2>読み上げ状態</h2><p id="speech-status" class="diagnostic-value">待機</p>
+      </section>
+
+      <section class="card diagnostics" aria-labelledby="diagnostics-title">
+        <div class="section-title"><div><span class="eyebrow">LIVE DIAGNOSTICS</span><h2 id="diagnostics-title">音声診断</h2></div><span class="live-dot">LIVE</span></div>
+        <div class="diagnostic-grid">
+          <div><span>マイク</span><strong id="mic-status">未許可</strong></div>
+          <div><span>音声認識</span><strong id="recognition-status">待機</strong></div>
+          <div><span>認識エラー</span><strong id="recognition-error">なし</strong></div>
+          <div><span>日本語音声</span><strong id="voice-status">確認中</strong></div>
+        </div>
+        <p id="diagnostic-message" class="diagnostic-message">開始ボタンを押すと各段階を確認できます。</p>
       </section>
 
       <section class="card demo-card">
-        <div class="section-title"><div><span class="eyebrow">TRY WITHOUT A MICROPHONE</span><h2>デモ会話テスト</h2></div><span>🧪</span></div>
-        <label for="demo-input">相手の発言</label>
-        <textarea id="demo-input" rows="3">最近、仕事で失敗して落ち込んでいるんだ</textarea>
-        <div class="demo-actions"><button id="run-demo" class="primary">分析して提案</button><button id="speak-demo" class="secondary" disabled>第1候補を読み上げ</button></div>
+        <div class="section-title"><div><span class="eyebrow">WITHOUT A MICROPHONE</span><h2>手動解析テスト</h2></div><span>🧪</span></div>
+        <label for="demo-input">テスト文章を入力</label>
+        <textarea id="demo-input" rows="3" placeholder="今日仕事で失敗して落ち込んでいるんだ">今日仕事で失敗して落ち込んでいるんだ</textarea>
+        <div class="demo-actions"><button id="run-demo" class="primary">解析テスト</button><button id="speak-demo" class="secondary" disabled>候補1をイヤホンで聞く</button></div>
       </section>
 
-      <footer>音声は端末内のブラウザ機能で処理します。APIキー・有料APIは使用しません。</footer>
+      <footer>音声はブラウザ機能と端末内ルールで処理します。APIキー・有料APIは使用しません。</footer>
     </main>
     <script type="module" src="./src/app.js"></script>
   </body>

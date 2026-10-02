@@ -15,3 +15,6 @@ test('怒っている発言には共感を提案する', () => assert.equal(anal
 test('質問には確認を提案する', () => assert.equal(analyzeMessage('これはどうするの？').action, '確認'));
 test('空の発言は分析しない', () => assert.equal(analyzeMessage('  '), null));
 test('会話状態をすべて定義する', () => assert.deepEqual(Object.keys(STATES), ['IDLE', 'LISTENING', 'RECOGNIZED', 'PROCESSING', 'SPEAKING']));
+test('アイデア要求にはアイデア行動を提案する', () => assert.equal(analyzeMessage('週末のアイデアがほしい').action, 'アイデア'));
+test('短い相槌向けの一般発言を処理する', () => assert.equal(analyzeMessage('そうだね').action, '相槌'));
+test('相談したい発言に深掘りを提案する', () => assert.equal(analyzeMessage('ちょっと相談したい').action, '深掘り'));

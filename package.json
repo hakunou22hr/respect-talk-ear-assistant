@@ -4,11 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "node --env-file-if-exists=.env server/local.js",
     "test": "node --test",
     "lint": "node scripts/lint.js",
     "build": "node scripts/build.js",
-    "test:browser": "node scripts/browser-tests.js"
+    "test:browser": "node scripts/browser-tests.js",
+    "test:gemini-browser": "node scripts/gemini-browser-tests.js"
   },
+  "engines": { "node": ">=22.9.0" },
   "devDependencies": {
     "playwright": "1.58.2"
   }

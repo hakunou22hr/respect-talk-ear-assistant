@@ -24,14 +24,26 @@
         <p><strong>モデル容量：約400MB</strong><br><span class="small">初回のみ通信が必要です。自動ではダウンロードしません。</span></p>
         <button id="prepare-ai" class="primary wide">生成AIモデルを準備</button>
         <div id="model-progress-wrap" hidden><div class="meter"><span id="model-progress"></span></div><p id="model-progress-label" class="progress-label">0%</p></div>
-        <label class="mode-select">開発・診断用モード <select id="mode-select"><option value="auto">自動（生成AI優先）</option><option value="local">ローカル生成AI</option><option value="rule">ルールベース</option></select></label>
+        <label class="mode-select">AIを選ぶ <select id="mode-select"><option value="auto">自動（ローカルAI優先）</option><option value="gemini">Gemini（PC版）</option><option value="local">ローカル生成AI</option><option value="rule">ルールベース</option></select></label>
         </details>
+      </section>
+
+      <section class="card gemini-card" aria-labelledby="gemini-title">
+        <h2 id="gemini-title">JARVIS PC版 · Gemini</h2>
+        <p class="small">自宅PCで npm start を実行して使います。APIキーはPCの.envへ登録し、この画面には入力しません。</p>
+        <button id="check-gemini" class="secondary wide">Gemini設定を確認</button>
+        <button id="use-gemini" class="primary wide">Geminiを選ぶ</button>
+        <p id="gemini-status" class="small" role="status">未確認。ローカルAI・ルールモードはそのまま使えます。</p>
+        <label class="switch-row">会話テキストのGoogle送信 <input id="gemini-consent" type="checkbox"><span>ON / OFF</span></label>
+        <p class="small">Gemini選択＋送信ONのときだけ、直近の発言（直接対話ではJARVIS返答も）をGoogleへ送信します。録音・議事録は送りません。無料枠は制限とデータ利用条件があり、有料枠は従量課金です。</p>
+        <label>対話の種類 <select id="talk-kind"><option value="coach">相手との会話を支援（35文字以内）</option><option value="chat">JARVISと直接話す（120文字以内）</option></select></label>
+        <p id="gemini-usage" class="small">API利用は初期設定で1日200回・1分20回まで。</p>
       </section>
 
       <section class="card connection-card" aria-labelledby="connection-title">
         <h2 id="connection-title">接続確認</h2>
-        <p>BluetoothイヤホンはiPhoneの設定で接続してください。</p>
-        <p class="small">このWebアプリは、iOSが選択している音声出力先を利用します。</p>
+        <p>マイク・イヤホンはPCまたはiPhoneの設定で接続してください。</p>
+        <p class="small">このWebアプリは、OSが選択している音声出力先を利用します。</p>
       </section>
 
       <button id="audio-test" class="test-button">🔊 イヤホン音声テスト</button>
@@ -123,8 +135,8 @@
         <button id="save-session" class="primary wide" hidden>保存</button>
       </section>
       <section class="card saved-card"><h2>端末内の保存一覧</h2><p id="session-message" role="status"></p><ol id="saved-sessions"></ol></section>
-      <section class="card privacy-card"><h2>音声・保存の制約</h2><p class="small">会話と録音は端末内のIndexedDBに保存し、外部AI APIへ送りません。ブラウザ標準SpeechRecognitionはベンダーのサーバーへ音声を送る場合があり、完全な端末内処理を保証できません。モデル準備時は配布元へ通信します。</p><p class="small">Bluetooth出力はiOSで選択してください。AI読み上げ中は録音を一時停止し、除外区間を記録します。その間の実音声は録音されませんが、認識結果は確認待ちとして保持します。マイクへの音漏れ・認識停止・Bluetooth切替の影響を完全には分離できません。「私が話す」で読み上げを止め、録音を再開できます。ブラウザの終了・容量不足・OSによる削除で保存を失う可能性があります。</p></section>
-      <footer><strong>会話内容は生成AI APIへ送信していません。</strong><br>音声認識の処理方式はブラウザ・OSによって異なります。APIキー・有料APIは使用しません。</footer>
+      <section class="card privacy-card"><h2>音声・保存の制約</h2><p class="small">会話と録音は端末内のIndexedDBに保存します。Gemini選択＋送信ONの場合だけ直近の会話テキストをGoogleへ送ります。録音・議事録は送りません。ブラウザ標準SpeechRecognitionはベンダーのサーバーへ音声を送る場合があり、完全な端末内処理を保証できません。ローカルモデル準備時は配布元へ通信します。</p><p class="small">音声出力先はOSで選択してください。AI読み上げ中は録音を一時停止し、除外区間を記録します。その間の実音声は録音されませんが、認識結果は確認待ちとして保持します。マイクへの音漏れ・認識停止・Bluetooth切替の影響を完全には分離できません。「私が話す」で読み上げを止め、録音を再開できます。ブラウザの終了・容量不足・OSによる削除で保存を失う可能性があります。</p></section>
+      <footer><strong>Gemini選択＋送信ONの場合だけ会話テキストをGoogleへ送信します。</strong><br>録音・議事録は端末内保存です。音声認識の処理方式はブラウザ・OSによって異なります。</footer>
     </main>
     <script type="module" src="./src/app.js"></script>
   </body>

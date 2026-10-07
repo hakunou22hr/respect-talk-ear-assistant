@@ -15,14 +15,17 @@
   <body data-state="idle">
     <main class="shell">
       <header><span class="eyebrow">EAR-SIDE CONVERSATION COACH</span><h1>Respect Talk <em>AI</em></h1><p>相手の声から返す言葉まで、その場でサポートします。</p></header>
+      <section class="session-banner" aria-live="polite"><strong id="elapsed">00:00:00</strong><span id="recording-status">録音OFF</span></section>
 
       <section class="card ai-card" aria-labelledby="ai-title">
         <div class="row"><h2 id="ai-title">AIモード</h2><strong id="ai-mode" class="mode-badge rule">🔵 ルールベース</strong></div>
+        <details id="model-options"><summary>モデル準備・診断モード</summary>
         <p id="capability-result" class="small">端末の機能を確認中です。</p>
         <p><strong>モデル容量：約400MB</strong><br><span class="small">初回のみ通信が必要です。自動ではダウンロードしません。</span></p>
         <button id="prepare-ai" class="primary wide">生成AIモデルを準備</button>
         <div id="model-progress-wrap" hidden><div class="meter"><span id="model-progress"></span></div><p id="model-progress-label" class="progress-label">0%</p></div>
         <label class="mode-select">開発・診断用モード <select id="mode-select"><option value="auto">自動（生成AI優先）</option><option value="local">ローカル生成AI</option><option value="rule">ルールベース</option></select></label>
+        </details>
       </section>
 
       <section class="card connection-card" aria-labelledby="connection-title">
@@ -34,7 +37,11 @@
       <button id="audio-test" class="test-button">🔊 イヤホン音声テスト</button>
 
       <section class="session-controls" aria-label="対話サポート操作">
-        <button id="toggle-session" class="primary wide">対話サポート開始</button>
+        <button id="toggle-session" class="primary wide">● 対話開始</button>
+        <label class="switch-row">録音（次の対話から） <input id="record-enabled" type="checkbox"><span>ON / OFF</span></label>
+        <label>次の実発言の話者 <select id="next-speaker"><option value="partner">相手（推定・修正可）</option><option value="self">私（手動指定）</option><option value="unknown">未確認</option></select></label>
+        <button id="speak-self" class="secondary wide" disabled>私が話す（AI読み上げを停止）</button>
+        <p class="small">1台のマイクによる自動話者分離はできません。既定は相手の推定です。各発言で修正してください。</p>
         <p id="support-note" class="support-note" role="alert" hidden></p>
       </section>
 
@@ -52,17 +59,17 @@
       </section>
 
       <section class="card transcript-card" aria-live="polite">
-        <h2>認識した相手の発言</h2>
+        <h2>🎙 認識した発言</h2>
         <p id="transcript" class="transcript empty">まだ認識されていません</p>
       </section>
 
       <section class="card analysis-card" aria-live="polite">
-        <div class="result-heading"><h2>Respect Talk判定</h2><span id="category-badge" class="badge">未判定</span></div>
+        <div class="result-heading"><h2>🧠 AI判断</h2><span id="category-badge" class="badge">未判定</span></div>
         <dl><div><dt>感情</dt><dd id="emotion">—</dd></div><div><dt>会話意図</dt><dd id="intent">—</dd></div><div><dt>相手が求めていること</dt><dd id="need">—</dd></div><div><dt>推奨</dt><dd id="action">—</dd></div></dl>
       </section>
 
       <section class="card replies-card" aria-live="polite">
-        <h2>💡 耳元提案</h2>
+        <h2>🎧 耳元提案</h2>
         <ol id="suggestions"><li class="placeholder">まだ返答案はありません</li></ol>
         <label class="switch-row">自動読み上げ <input id="auto-speak" type="checkbox" checked><span>ON / OFF</span></label>
       </section>
@@ -80,6 +87,11 @@
           <div><span>日本語音声</span><strong id="voice-status">確認中</strong></div>
           <div><span>ローカルAI入力文章</span><strong id="ai-input">なし</strong></div>
           <div><span>AI処理</span><strong id="ai-processing">待機</strong></div>
+          <div><span>認識（最初の文字表示→確定）</span><strong id="recognition-ms">—</strong></div>
+          <div><span>AI判断</span><strong id="decision-ms">—</strong></div>
+          <div><span>読み上げ開始（TTS依頼→開始）</span><strong id="speech-ms">—</strong></div>
+          <div><span>合計（最初の文字表示→音声開始）</span><strong id="total-ms">—</strong></div>
+          <div><span>実測平均（開始イベントが届いた発言）</span><strong id="average-ms">—</strong></div>
           <div><span>AI処理時間</span><strong id="ai-time">—</strong></div>
           <div><span>生成結果</span><strong id="ai-output">なし</strong></div>
           <div><span>SpeechSynthesis</span><strong id="tts-event">待機</strong></div>
@@ -94,6 +106,24 @@
         <div class="demo-actions"><button id="run-demo" class="primary">解析テスト</button><button id="speak-demo" class="secondary" disabled>候補1をイヤホンで聞く</button></div>
       </section>
 
+      <section id="history-panel" class="card" hidden>
+        <h2>会話履歴</h2>
+        <label>タイトル <input id="session-title" maxlength="80"></label>
+        <label>参加者 <input id="participants" maxlength="200" value="相手、私"></label>
+        <ol id="history-list"></ol>
+        <section id="pending-panel" hidden><h3>読み上げ中の発言・確認待ち</h3><p class="small">AI音声か実発言かを確認してください。確定するまで会話全文・議事録・AI文脈に含めません。自動では削除しません。</p><ol id="pending-list"></ol></section>
+        <label for="actual-input">実際に話した発言を補記（上の話者を使用）</label>
+        <textarea id="actual-input" rows="2" placeholder="録音除外区間などの実発言だけを入力"></textarea>
+        <button id="add-utterance" class="secondary wide">実発言を追加</button>
+        <p id="recording-gaps" class="small"></p>
+        <audio id="recording-player" controls hidden></audio>
+        <label>要約の種類 <select id="summary-level"><option value="brief">要点だけ</option><option value="standard" selected>標準要約</option><option value="detailed">詳細議事録</option></select></label>
+        <button id="create-minutes" class="primary wide" hidden>議事録を作成</button>
+        <pre id="minutes-output"></pre>
+        <button id="save-session" class="primary wide" hidden>保存</button>
+      </section>
+      <section class="card saved-card"><h2>端末内の保存一覧</h2><p id="session-message" role="status"></p><ol id="saved-sessions"></ol></section>
+      <section class="card privacy-card"><h2>音声・保存の制約</h2><p class="small">会話と録音は端末内のIndexedDBに保存し、外部AI APIへ送りません。ブラウザ標準SpeechRecognitionはベンダーのサーバーへ音声を送る場合があり、完全な端末内処理を保証できません。モデル準備時は配布元へ通信します。</p><p class="small">Bluetooth出力はiOSで選択してください。AI読み上げ中は録音を一時停止し、除外区間を記録します。その間の実音声は録音されませんが、認識結果は確認待ちとして保持します。マイクへの音漏れ・認識停止・Bluetooth切替の影響を完全には分離できません。「私が話す」で読み上げを止め、録音を再開できます。ブラウザの終了・容量不足・OSによる削除で保存を失う可能性があります。</p></section>
       <footer><strong>会話内容は生成AI APIへ送信していません。</strong><br>音声認識の処理方式はブラウザ・OSによって異なります。APIキー・有料APIは使用しません。</footer>
     </main>
     <script type="module" src="./src/app.js"></script>

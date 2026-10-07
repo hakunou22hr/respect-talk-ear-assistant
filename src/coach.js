@@ -7,9 +7,15 @@ const RULES = [
   { emotion: '迷い', intent: '相談して考えを整理したい', action: '深掘り', words: ['相談', '悩みを聞いて'], replies: ['もちろん、聞かせて。', '一番気になるのはどこ？', '一緒に整理しようか。'] }
 ];
 
-export function analyzeMessage(rawText) {
+export function analyzeMessage(rawText, context = '') {
   const text = rawText.trim();
   if (!text) return null;
+  if (/朝(飯|食).*食べ.*(なかった|ない)|朝ごはん.*(抜|食べてない)/.test(text)) {
+    return { text, emotion: '軽い驚き', intent: '朝の出来事を共有', need: '自然な反応', action: '驚き', replies: ['え、そうなの？時間なかった？', 'お腹すいてない？', '朝忙しかった？'], source: 'rule' };
+  }
+  if (/寝坊/.test(text) && /朝飯|朝食|朝ごはん/.test(context)) {
+    return { text, emotion: '共感', intent: '朝食を抜いた理由', need: '気軽に話したい', action: '軽いユーモア', replies: ['布団が離してくれなかった？', '朝バタバタだったんだね。'], source: 'rule' };
+  }
   const rule = RULES.find((item) => item.words.some((word) => text.includes(word)));
   if (rule) return { text, emotion: rule.emotion, intent: rule.intent, need: rule.intent, action: rule.action, replies: [...rule.replies], source: 'rule' };
   if (/アイデア|案がほしい|提案して/.test(text)) {

@@ -21,19 +21,21 @@ export class ConversationHistory {
 }
 
 export function normalizeAnalysis(value, fallback, text) {
-  const allowed = ['相槌', '共感', '共有', '質問', '深掘り', '確認', '励まし', 'アイデア', '提案', '今は黙って聞く'];
+  const allowed = ['相槌', '共感', '驚き', '共有', '質問', '深掘り', '確認', '軽いユーモア', '励まし', 'アイデア', '提案', '今は黙って聞く'];
   const clean = (input, defaultValue, max = 30) => String(input || defaultValue).replace(/[\r\n]/g, ' ').trim().slice(0, max);
   const replies = Array.isArray(value?.replies)
     ? value.replies.map((reply) => clean(reply, '', 35)).filter(Boolean).slice(0, 3)
     : [];
+  const inappropriate = replies.some((reply) => /説明します|重要性について|アドバイスします|あなたは.*すべき/.test(reply));
   return {
     text,
     emotion: clean(value?.emotion, fallback.emotion, 20),
     intent: clean(value?.intent, fallback.intent, 30),
     need: clean(value?.need, fallback.need || fallback.intent, 30),
     action: allowed.includes(value?.action) ? value.action : fallback.action,
-    replies: replies.length ? replies : fallback.replies.slice(0, 3),
-    source: 'local'
+    replies: value?.action === '今は黙って聞く' ? [] : replies.length && !inappropriate ? replies : fallback.replies.slice(0, 3),
+    source: inappropriate ? 'rule' : 'local',
+    ...(inappropriate ? { fallbackReason: '会話に不自然な説明形式を除外' } : {})
   };
 }
 

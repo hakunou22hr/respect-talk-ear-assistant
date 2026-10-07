@@ -4,6 +4,7 @@ import { SessionView } from './session-ui.js';
 import { SessionRecorder } from './recorder.js';
 import { AssistanceEngine, resemblesSuggestion } from './assistance.js';
 import { inspectCapabilities, LocalAI } from './local-ai.js';
+import { GeminiAI, geminiHistory, geminiChatHistory } from './gemini-ai.js';
 
 const $ = (selector) => document.querySelector(selector);
 const ui = {
@@ -23,6 +24,8 @@ const STATUS = {
 };
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const localAI = new LocalAI();
+const gemini = new GeminiAI();
+const chatDemo = { conversationSession: [], assistantSuggestions: [] };
 const engine = new AssistanceEngine(localAI);
 const view = new SessionView(localAI, engine);
 const recorder = new SessionRecorder();
@@ -30,7 +33,7 @@ let session = null, epoch = 0, requestVersion = 0, speechVersion = 0, clock = nu
 let recordingResumeTimer = null, speechWatchdog = null;
 let firstTranscriptAt = null, firstTranscriptWall = null, speechTailUntil = 0, playbackOverlap = false, latestInterim = '';
 const latencySamples = [];
-view.onChange = () => { requestVersion += 1; };
+view.onChange = () => { requestVersion += 1; gemini.cancel(); };
 
 let recognition = null, recognitionRunning = false, restartTimer = null, state = STATES.IDLE, active = false;
 let lastAnalysis = null, microphoneStream = null, audioContext = null, meterFrame = null, japaneseVoice = null;
@@ -46,11 +49,12 @@ function setState(next) {
 function setDiagnostic(message) { ui.diagnosticMessage.textContent = message; }
 recorder.onError = (error) => { setDiagnostic(`録音エラー：${error.message}。実発言の文字記録は継続します。`); showRecording(); };
 function setAIMode(kind) {
-  const states = { local: ['🟢 ローカル生成AI', 'local'], loading: ['🟡 モデル読み込み中', 'loading'], rule: ['🔵 ルールベース', 'rule'], error: ['🔴 AIエラー', 'error'] };
+  const states = { gemini: ['🟢 Gemini（Google）', 'gemini'], local: ['🟢 ローカル生成AI', 'local'], loading: ['🟡 モデル読み込み中', 'loading'], rule: ['🔵 ルールベース', 'rule'], error: ['🔴 AIエラー', 'error'] };
   const [label, style] = states[kind]; ui.aiMode.textContent = label; ui.aiMode.className = `mode-badge ${style}`;
 }
 function selectedMode() { return $('#mode-select').value; }
-function useLocal() { return localReady && !localAI.workerError && selectedMode() !== 'rule'; }
+function useLocal() { return localReady && !localAI.workerError && ['auto', 'local'].includes(selectedMode()); }
+function directChat() { return $('#talk-kind').value === 'chat'; }
 
 function showResult(analysis) {
   lastAnalysis = analysis;
@@ -127,6 +131,7 @@ async function processText(rawText, shouldSpeak = true, entry = null, firstAt = 
   if (shouldSpeak && !active) return;
   setState(STATES.RECOGNIZED); ui.recognitionStatus.textContent = '音声認識成功';
   const context = entry ? currentSession.context() : '';
+  const kind = directChat() ? 'chat' : 'coach';
   const fallback = analyzeMessage(text, context);
   showResult(fallback); // Immediate text proposal; speech waits for a single chosen result.
   setState(STATES.PROCESSING);
@@ -135,14 +140,28 @@ async function processText(rawText, shouldSpeak = true, entry = null, firstAt = 
   const timing = { firstAt, recognition: Math.round(started - firstAt), decision: null, speech: null, total: null };
   $('#recognition-ms').textContent = `${timing.recognition}ms`;
   $('#speech-ms').textContent = '未開始'; $('#total-ms').textContent = '未計測';
-  const analysis = await engine.analyze(text, context, fallback, useLocal());
+  let analysis;
+  if (selectedMode() === 'gemini') {
+    try {
+      const inputSession = entry ? currentSession : chatDemo;
+      if (!entry && kind === 'chat') { chatDemo.conversationSession.push({ text, speaker: 'self', timestamp: Date.now() }); chatDemo.conversationSession = chatDemo.conversationSession.slice(-8); }
+      analysis = await gemini.analyze(text, kind === 'coach' ? geminiHistory(inputSession) : [], kind, kind === 'chat' ? geminiChatHistory(inputSession) : []);
+    } catch (error) { analysis = { ...fallback, kind, fallbackReason: error.message }; }
+  } else analysis = await engine.analyze(text, context, fallback, useLocal());
   if (version !== requestVersion || currentEpoch !== epoch || (shouldSpeak && (!active || session !== currentSession))) return;
   timing.decision = Math.round(performance.now() - started);
   $('#decision-ms').textContent = `${timing.decision}ms`; ui.aiTime.textContent = `${timing.decision}ms`;
-  ui.aiProcessing.textContent = analysis.source === 'local' ? 'ローカルAI処理完了' : 'ルール処理完了（fallback）';
-  if (analysis.source === 'local') setAIMode('local');
+  ui.aiProcessing.textContent = analysis.source === 'gemini' ? 'Gemini処理完了' : analysis.source === 'local' ? 'ローカルAI処理完了' : 'ルール処理完了（fallback）';
+  if (analysis.source === 'gemini') {
+    setAIMode('gemini'); $('#gemini-status').textContent = `Gemini応答成功：${analysis.model}`;
+    $('#gemini-usage').textContent = `今日のAPI利用 ${analysis.usage.used} / ${analysis.usage.limit}回（失敗・取消を含む）`;
+    if (!entry && kind === 'chat') { chatDemo.assistantSuggestions.push({ text: analysis.replies[0] || '', kind: 'chat', timestamp: Date.now() }); chatDemo.assistantSuggestions = chatDemo.assistantSuggestions.slice(-8); }
+  } else if (analysis.source === 'local') setAIMode('local');
   else if (localAI.workerError) { aiError = true; setAIMode('error'); setDiagnostic(`${localAI.workerError}。ルールベースで継続します。`); }
-  if (analysis.fallbackReason && useLocal()) setDiagnostic(`ローカルAI：${analysis.fallbackReason}。短いルール応答を採用。`);
+  if (analysis.fallbackReason && (useLocal() || selectedMode() === 'gemini')) {
+    setDiagnostic(`${selectedMode() === 'gemini' ? 'Gemini' : 'ローカルAI'}：${analysis.fallbackReason}。短いルール応答を採用。`);
+    if (selectedMode() === 'gemini') { setAIMode('rule'); $('#gemini-status').textContent = `${analysis.fallbackReason}。ルールで継続しています。`; }
+  }
   ui.aiOutput.textContent = analysis.replies.join(' / ') || '今は聞くだけ'; showResult(analysis);
   if (entry) currentSession.suggest(analysis, entry.id, timing);
   setState(active ? STATES.LISTENING : STATES.IDLE);
@@ -177,12 +196,12 @@ function configureRecognition() {
       ui.transcript.textContent = `「${transcript}」`; ui.transcript.classList.remove('empty');
     }
     if (!finalText.trim()) return;
-    const speaker = $('#next-speaker').value;
+    const speaker = directChat() ? 'self' : $('#next-speaker').value;
     const pending = playbackOverlap || speaking || Date.now() < speechTailUntil || resemblesSuggestion(finalText, session.assistantSuggestions.filter((item) => Date.now() - item.timestamp < 10000));
     const entry = session.add(finalText, speaker, { timestamp: firstTranscriptWall ?? Date.now(), confirmed: speaker === 'self', pending });
     view.render();
     if (pending) setDiagnostic('読み上げとの重複の可能性：発言を確認待ちに保持しました。履歴で実発言かAI音声かを確定してください。');
-    else if (speaker !== 'self') processText(finalText, true, entry, firstTranscriptAt ?? performance.now());
+    else if (speaker !== 'self' || directChat()) processText(finalText, true, entry, firstTranscriptAt ?? performance.now());
     else { ++requestVersion; cancelSpeech(); setState(STATES.LISTENING); }
     firstTranscriptAt = null; firstTranscriptWall = null; playbackOverlap = false;
   };
@@ -204,7 +223,7 @@ function preserveInterim() {
 }
 async function endSession() {
   if (!active) return;
-  active = false; epoch += 1; requestVersion += 1; clearTimeout(restartTimer); clearInterval(clock);
+  active = false; epoch += 1; requestVersion += 1; gemini.cancel(); clearTimeout(restartTimer); clearInterval(clock);
   ui.toggle.disabled = true; ui.toggle.dataset.active = 'false';
   try { recognition?.stop(); } catch { /* Already stopped. */ }
   cancelSpeech(); preserveInterim(); session.end(); $('#elapsed').textContent = durationLabel(session.endedAt - session.startedAt);
@@ -227,7 +246,28 @@ $('#prepare-ai').addEventListener('click', async () => {
   try { await localAI.prepare({ onProgress: (percent) => { ui.progress.style.width = `${percent}%`; ui.progressLabel.textContent = `${percent}%`; } }); localReady = true; localAI.ready = true; ui.progress.style.width = '100%'; ui.progressLabel.textContent = '100%'; setAIMode('local'); $('#prepare-ai').textContent = 'モデル準備完了'; }
   catch (error) { aiError = true; setAIMode('error'); $('#prepare-ai').disabled = false; setDiagnostic(`モデル読み込み失敗：${error.message}。ルールベースモードで動作します。`); }
 });
-$('#mode-select').addEventListener('change', () => { if (selectedMode() === 'rule') setAIMode('rule'); else if (localReady) setAIMode('local'); else setAIMode(aiError ? 'error' : 'rule'); });
+$('#mode-select').addEventListener('change', () => {
+  requestVersion += 1; gemini.cancel(); cancelSpeech();
+  if (selectedMode() === 'gemini') setAIMode(gemini.ready ? 'gemini' : 'rule');
+  else if (selectedMode() === 'rule') setAIMode('rule'); else if (localReady) setAIMode('local'); else setAIMode(aiError ? 'error' : 'rule');
+});
+$('#check-gemini').addEventListener('click', async () => {
+  requestVersion += 1; gemini.cancel(); cancelSpeech();
+  const button = $('#check-gemini'); button.disabled = true;
+  try { const result = await gemini.check(); $('#gemini-status').textContent = result.ready ? `PCの設定あり：${result.model}。送信ONにしてGeminiを選ぶと使えます（実応答は未確認）。` : 'PCの.envにGemini APIキーを設定し、npm startを再起動してください。'; }
+  catch (error) { gemini.available = false; $('#gemini-status').textContent = error.message; }
+  finally { button.disabled = false; if (selectedMode() === 'gemini') setAIMode(gemini.ready ? 'gemini' : 'rule'); }
+});
+$('#use-gemini').addEventListener('click', () => { $('#mode-select').value = 'gemini'; $('#mode-select').dispatchEvent(new Event('change')); });
+$('#gemini-consent').addEventListener('change', () => {
+  requestVersion += 1; gemini.cancel(); cancelSpeech(); gemini.consented = $('#gemini-consent').checked;
+  if (selectedMode() === 'gemini') setAIMode(gemini.ready ? 'gemini' : 'rule');
+});
+$('#talk-kind').addEventListener('change', () => {
+  requestVersion += 1; gemini.cancel(); cancelSpeech();
+  $('#next-speaker').disabled = directChat(); $('#next-speaker').value = directChat() ? 'self' : 'partner';
+  $('#run-demo').textContent = directChat() ? 'JARVISへ送信' : '解析テスト';
+});
 $('#audio-test').addEventListener('click', () => speak('Respect Talk AI 音声テストです'));
 ui.toggle.addEventListener('click', async () => {
   if (active) { await endSession(); return; }
@@ -254,8 +294,8 @@ ui.toggle.addEventListener('click', async () => {
     ui.toggle.textContent = '■ 対話終了'; startListening();
   } finally { ui.toggle.disabled = false; }
 });
-$('#speak-self').addEventListener('click', () => { $('#next-speaker').value = 'self'; requestVersion += 1; cancelSpeech(); setState(STATES.LISTENING); scheduleListening(0); });
-$('#next-speaker').addEventListener('change', () => { if ($('#next-speaker').value === 'self') { requestVersion += 1; cancelSpeech(); } });
+$('#speak-self').addEventListener('click', () => { $('#next-speaker').value = 'self'; requestVersion += 1; gemini.cancel(); cancelSpeech(); setState(STATES.LISTENING); scheduleListening(0); });
+$('#next-speaker').addEventListener('change', () => { if ($('#next-speaker').value === 'self') { requestVersion += 1; gemini.cancel(); cancelSpeech(); } });
 $('#auto-speak').addEventListener('change', () => { if (!$('#auto-speak').checked) cancelSpeech(); });
 $('#run-demo').addEventListener('click', () => processText($('#demo-input').value, false));
 $('#speak-demo').addEventListener('click', () => { if (lastAnalysis) speak(lastAnalysis.replies[0], active); });

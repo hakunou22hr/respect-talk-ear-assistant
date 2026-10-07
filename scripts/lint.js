@@ -7,7 +7,7 @@ async function filesIn(directory) {
   const nested = await Promise.all(entries.map((entry) => entry.isDirectory() ? filesIn(path.join(directory, entry.name)) : [path.join(directory, entry.name)]));
   return nested.flat();
 }
-const files = (await Promise.all(['src', 'scripts', 'tests'].map(filesIn))).flat().filter((file) => file.endsWith('.js'));
+const files = (await Promise.all(['src', 'server', 'scripts', 'tests'].map(filesIn))).flat().filter((file) => file.endsWith('.js'));
 let failed = false;
 for (const file of files) {
   const source = await readFile(file, 'utf8');

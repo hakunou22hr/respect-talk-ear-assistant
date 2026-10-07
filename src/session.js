@@ -23,7 +23,7 @@ export class ConversationSession {
   }
   suggest(analysis, utteranceId, timing) {
     if (this.endedAt !== null) return null;
-    const item = { id: id(), timestamp: Date.now(), utteranceId, text: analysis.replies[0] || '', action: analysis.action, source: analysis.source, timing };
+    const item = { id: id(), timestamp: Date.now(), utteranceId, text: analysis.replies[0] || '', action: analysis.action, source: analysis.source, kind: analysis.kind || 'coach', timing };
     this.assistantSuggestions.push(item);
     return item;
   }

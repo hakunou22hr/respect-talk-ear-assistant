@@ -78,6 +78,8 @@ ol li { display: flex; align-items: center; justify-content: space-between; gap:
 .shell > header { order: 0; }
 .session-banner { order: 1; display: flex; justify-content: space-between; padding: .75rem; font-variant-numeric: tabular-nums; }
 .shell > .ai-card { order: 2; }
+.shell > .gemini-card { order: 2; }
+.mode-badge.gemini { background: #293968; color: #b7caff; }
 .ai-card p, .ai-card .mode-select { font-size: .75rem; }
 .shell > .transcript-card { order: 3; }
 .shell > .analysis-card { order: 4; }

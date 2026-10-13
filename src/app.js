@@ -30,7 +30,7 @@ let session = null, epoch = 0, requestVersion = 0, speechVersion = 0, clock = nu
 let recordingResumeTimer = null, speechWatchdog = null;
 let firstTranscriptAt = null, firstTranscriptWall = null, speechTailUntil = 0, playbackOverlap = false, latestInterim = '';
 const latencySamples = [];
-view.onChange = () => { requestVersion += 1; };
+view.onChange = () => { clearReply(); requestVersion += 1; };
 
 let recognition = null, recognitionRunning = false, restartTimer = null, state = STATES.IDLE, active = false;
 let lastAnalysis = null, microphoneStream = null, audioContext = null, meterFrame = null, japaneseVoice = null;
@@ -57,12 +57,7 @@ function showResult(analysis) {
   ui.transcript.textContent = `「${analysis.text}」`; ui.transcript.classList.remove('empty');
   ui.emotion.textContent = analysis.emotion; ui.intent.textContent = analysis.intent; ui.need.textContent = analysis.need || analysis.intent;
   ui.action.textContent = analysis.action; ui.badge.textContent = analysis.action;
-  ui.suggestions.replaceChildren(...analysis.replies.slice(0, 3).map((reply, index) => {
-    const li = document.createElement('li'); if (index === 0) li.className = 'best';
-    const text = document.createElement('span'); text.textContent = `${index + 1}  ${reply}`;
-    const button = document.createElement('button'); button.className = 'speaker'; button.type = 'button'; button.textContent = '🔊'; button.setAttribute('aria-label', `候補${index + 1}を読み上げる`);
-    button.addEventListener('click', () => speak(reply, active)); li.append(text, button); return li;
-  }));
+  ui.suggestions.textContent = analysis.replies.length ? '返答を1つ準備しました（文章は非表示）' : '今は聞くだけ';
   $('#speak-demo').disabled = !analysis.replies.length;
 }
 
@@ -98,7 +93,7 @@ function speak(text, resumeListening = false, timing = null) {
   speaking = true; recorder.pause(); showRecording();
   ui.speechStatus.textContent = '読み上げ準備'; ui.ttsEvent.textContent = 'SpeechSynthesis開始待ち';
   const requested = performance.now();
-  const utterance = new SpeechSynthesisUtterance(text); utterance.lang = 'ja-JP'; utterance.rate = 1.08; if (japaneseVoice) utterance.voice = japaneseVoice;
+  const utterance = new SpeechSynthesisUtterance(text); utterance.lang = 'ja-JP'; utterance.rate = Number($('#speech-rate').value); utterance.volume = Number($('#speech-volume').value); if (japaneseVoice) utterance.voice = japaneseVoice;
   utterance.onstart = () => {
     if (token !== speechVersion || currentEpoch !== epoch) return;
     ui.speechStatus.textContent = '読み上げ中'; ui.ttsEvent.textContent = `開始：${new Date().toLocaleTimeString()}`; setState(STATES.SPEAKING);
@@ -128,7 +123,7 @@ async function processText(rawText, shouldSpeak = true, entry = null, firstAt = 
   setState(STATES.RECOGNIZED); ui.recognitionStatus.textContent = '音声認識成功';
   const context = entry ? currentSession.context() : '';
   const fallback = analyzeMessage(text, context);
-  showResult(fallback); // Immediate text proposal; speech waits for a single chosen result.
+  showResult(fallback); // Only judgment state is shown; reply text stays private.
   setState(STATES.PROCESSING);
   ui.aiInput.textContent = context || text; ui.aiProcessing.textContent = 'AI処理開始';
   const started = performance.now();
@@ -143,10 +138,23 @@ async function processText(rawText, shouldSpeak = true, entry = null, firstAt = 
   if (analysis.source === 'local') setAIMode('local');
   else if (localAI.workerError) { aiError = true; setAIMode('error'); setDiagnostic(`${localAI.workerError}。ルールベースで継続します。`); }
   if (analysis.fallbackReason && useLocal()) setDiagnostic(`ローカルAI：${analysis.fallbackReason}。短いルール応答を採用。`);
-  ui.aiOutput.textContent = analysis.replies.join(' / ') || '今は聞くだけ'; showResult(analysis);
+  analysis.replies = analysis.replies.slice(0, 1);
+  ui.aiOutput.textContent = analysis.replies.length ? '1つの返答を準備（非表示）' : '今は聞くだけ'; showResult(analysis);
   if (entry) currentSession.suggest(analysis, entry.id, timing);
   setState(active ? STATES.LISTENING : STATES.IDLE);
   if (shouldSpeak && $('#auto-speak').checked) speak(analysis.replies[0], true, timing);
+}
+
+
+let replyTimer = null, queuedReply = null;
+function clearReply() { clearTimeout(replyTimer); queuedReply = null; }
+function queueReply(text, entry, firstAt) {
+  clearTimeout(replyTimer); requestVersion += 1;
+  queuedReply = { text: queuedReply ? `${queuedReply.text} ${text}` : text, entry, firstAt: queuedReply?.firstAt ?? firstAt };
+  replyTimer = setTimeout(() => {
+    const turn = queuedReply; queuedReply = null;
+    if (turn && active && !speaking && $('#next-speaker').value === 'partner') processText(turn.text, true, turn.entry, turn.firstAt);
+  }, 650);
 }
 
 function startListening() {
@@ -171,6 +179,7 @@ function configureRecognition() {
       if (event.results[i].isFinal) finalText += event.results[i][0].transcript;
     }
     if (transcript) {
+      clearTimeout(replyTimer); requestVersion += 1;
       latestInterim = finalText ? '' : transcript;
       playbackOverlap ||= speaking || Date.now() < speechTailUntil;
       firstTranscriptAt ??= performance.now(); firstTranscriptWall ??= Date.now();
@@ -181,9 +190,10 @@ function configureRecognition() {
     const pending = playbackOverlap || speaking || Date.now() < speechTailUntil || resemblesSuggestion(finalText, session.assistantSuggestions.filter((item) => Date.now() - item.timestamp < 10000));
     const entry = session.add(finalText, speaker, { timestamp: firstTranscriptWall ?? Date.now(), confirmed: speaker === 'self', pending });
     view.render();
-    if (pending) setDiagnostic('読み上げとの重複の可能性：発言を確認待ちに保持しました。履歴で実発言かAI音声かを確定してください。');
-    else if (speaker !== 'self') processText(finalText, true, entry, firstTranscriptAt ?? performance.now());
-    else { ++requestVersion; cancelSpeech(); setState(STATES.LISTENING); }
+    if (pending) { clearReply(); setDiagnostic('読み上げとの重複の可能性：発言を確認待ちに保持しました。履歴で実発言かAI音声かを確定してください。'); }
+    else if (speaker === 'partner') queueReply(finalText, entry, firstTranscriptAt ?? performance.now());
+    else if (speaker === 'unknown') { clearReply(); setDiagnostic('話者が未確認のため、自動提案を保留しました。'); }
+    else { clearReply(); ++requestVersion; cancelSpeech(); setState(STATES.LISTENING); }
     firstTranscriptAt = null; firstTranscriptWall = null; playbackOverlap = false;
   };
   recognition.onerror = (event) => {
@@ -193,7 +203,7 @@ function configureRecognition() {
       setDiagnostic('音声認識を利用できないため対話を終了しました。記録済みの発言は保持します。'); endSession();
     }
   };
-  recognition.onend = () => { if (recognition !== recognizer) return; recognitionRunning = false; if (active) { preserveInterim(); scheduleListening(); } };
+  recognition.onend = () => { if (recognition !== recognizer) return; recognitionRunning = false; if (active) { if (latestInterim) clearReply(); preserveInterim(); scheduleListening(); } };
   return true;
 }
 function preserveInterim() {
@@ -204,15 +214,15 @@ function preserveInterim() {
 }
 async function endSession() {
   if (!active) return;
-  active = false; epoch += 1; requestVersion += 1; clearTimeout(restartTimer); clearInterval(clock);
+  clearReply(); active = false; epoch += 1; requestVersion += 1; clearTimeout(restartTimer); clearInterval(clock);
   ui.toggle.disabled = true; ui.toggle.dataset.active = 'false';
   try { recognition?.stop(); } catch { /* Already stopped. */ }
   cancelSpeech(); preserveInterim(); session.end(); $('#elapsed').textContent = durationLabel(session.endedAt - session.startedAt);
   let recording = null;
   try { recording = await recorder.stop(); } catch (error) { setDiagnostic(`録音停止エラー：${error.message}`); }
   session.recordingGaps = [...recorder.gaps]; stopMicrophone(); showRecording();
-  view.set(session, recording); await view.save();
-  $('#record-enabled').disabled = false; $('#speak-self').disabled = true; ui.toggle.textContent = '● 対話開始'; ui.toggle.disabled = false;
+  view.set(session, recording); if ($('#save-enabled').checked) await view.save(); else view.message('端末には保存していません。必要なら「保存」を押してください。');
+  for (const id of ['record-enabled', 'save-enabled', 'consent']) $(`#${id}`).disabled = false; $('#speak-self').disabled = true; ui.toggle.textContent = '● 対話開始'; ui.toggle.disabled = false;
   setState(STATES.IDLE); $('#history-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function startMeter(stream) {
@@ -231,9 +241,12 @@ $('#mode-select').addEventListener('change', () => { if (selectedMode() === 'rul
 $('#audio-test').addEventListener('click', () => speak('Respect Talk AI 音声テストです'));
 ui.toggle.addEventListener('click', async () => {
   if (active) { await endSession(); return; }
+  if (!$('#consent').checked) { ui.note.hidden = false; ui.note.textContent = '参加者全員の同意を確認してチェックしてください。'; return; }
+  if ($('#record-enabled').checked && !$('#save-enabled').checked) { ui.note.hidden = false; ui.note.textContent = '録音する場合は会話保存もONにしてください。'; return; }
+  ui.note.hidden = true;
   ui.toggle.disabled = true;
   try {
-    if (view.session?.endedAt !== null && view.session) {
+    if ($('#save-enabled').checked && view.session?.endedAt !== null && view.session) {
       try { await view.store.save(view.session, view.recording); }
       catch (error) { view.message(`前の記録を保存できません：${error.message}。新しい対話を始める前に保存を再試行してください。`); return; }
     }
@@ -244,7 +257,7 @@ ui.toggle.addEventListener('click', async () => {
     session = new ConversationSession(); latencySamples.length = 0; recorder.reset(); latestInterim = '';
     for (const selector of ['#recognition-ms', '#decision-ms', '#speech-ms', '#total-ms', '#average-ms']) $(selector).textContent = '—';
     view.set(session); active = true; ui.toggle.dataset.active = 'true';
-    $('#record-enabled').disabled = true; $('#speak-self').disabled = false;
+    for (const id of ['record-enabled', 'save-enabled', 'consent']) $(`#${id}`).disabled = true; $('#speak-self').disabled = false;
     if ($('#record-enabled').checked) {
       try { recorder.start(microphoneStream); }
       catch (error) { setDiagnostic(`録音不可：${error.message}。文字記録は継続します。`); }
@@ -254,8 +267,8 @@ ui.toggle.addEventListener('click', async () => {
     ui.toggle.textContent = '■ 対話終了'; startListening();
   } finally { ui.toggle.disabled = false; }
 });
-$('#speak-self').addEventListener('click', () => { $('#next-speaker').value = 'self'; requestVersion += 1; cancelSpeech(); setState(STATES.LISTENING); scheduleListening(0); });
-$('#next-speaker').addEventListener('change', () => { if ($('#next-speaker').value === 'self') { requestVersion += 1; cancelSpeech(); } });
+$('#speak-self').addEventListener('click', () => { clearReply(); $('#next-speaker').value = 'self'; requestVersion += 1; cancelSpeech(); setState(STATES.LISTENING); scheduleListening(0); });
+$('#next-speaker').addEventListener('change', () => { clearReply(); requestVersion += 1; if ($('#next-speaker').value === 'self') { requestVersion += 1; cancelSpeech(); } });
 $('#auto-speak').addEventListener('change', () => { if (!$('#auto-speak').checked) cancelSpeech(); });
 $('#run-demo').addEventListener('click', () => processText($('#demo-input').value, false));
 $('#speak-demo').addEventListener('click', () => { if (lastAnalysis) speak(lastAnalysis.replies[0], active); });
@@ -265,3 +278,9 @@ if (!capabilities.usable) { $('#prepare-ai').disabled = true; ui.note.hidden = f
 setState(STATES.IDLE); setAIMode('rule'); loadVoices();
 if ('speechSynthesis' in window) speechSynthesis.addEventListener('voiceschanged', loadVoices);
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+
+for (const [id, output, label] of [['speech-rate', 'rate-value', (v) => `${v}倍`], ['speech-volume', 'volume-value', (v) => `${Math.round(v * 100)}%`]]) {
+  $(`#${id}`).addEventListener('input', () => { $(`#${output}`).textContent = label(Number($(`#${id}`).value)); });
+}
+$('#confirm-output').addEventListener('click', () => { $('#output-status').textContent = '試聴確認済み（利用者確認・出力先の自動検出なし）'; });
+navigator.mediaDevices?.addEventListener?.('devicechange', () => { $('#output-status').textContent = '接続変更：OSの出力先を再確認してください'; });

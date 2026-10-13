@@ -29,8 +29,8 @@
       </section><section class="card transcript-card" aria-live="polite">
         <h2>🎙 認識した発言</h2>
         <p id="transcript" class="transcript empty">まだ認識されていません</p>
-      </section><section id="history-panel" class="card" hidden>
-        <h2>会話履歴</h2>
+      </section><section id="history-panel" class="card" tabindex="-1" aria-labelledby="history-title" hidden>
+        <h2 id="history-title">会話履歴</h2><p id="history-state" role="status" class="small"></p>
         <label>タイトル <input id="session-title" maxlength="80"></label>
         <label>参加者 <input id="participants" maxlength="200" value="相手、私"></label>
         <ol id="history-list"></ol>

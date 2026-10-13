@@ -14,7 +14,7 @@
 
 ## 自動検証
 
-`npm test`（3テストファイル）、`npm run lint`、`npm run build` は成功。ブラウザテストは25項目成功（下記の模擬範囲を参照）。
+`npm test`（3テストファイル）、`npm run lint`、`npm run build` は成功。ブラウザテストは27項目成功（下記の模擬範囲を参照）。
 `CHROMIUM_PATH=/usr/bin/chromium npm run test:browser` はLinux Chromiumで実行。認識、読み上げ、録音、モデルは模擬。PC配置・390px幅・実Worker起動・オフライン資産は実ブラウザで検証するが、Windows / iPhone実機の証明ではありません。
 
 ## 実機受け入れチェック（全項目未実施）
@@ -55,6 +55,10 @@ Windows 11はEdgeおよびChrome、iPhoneはSafariおよびホーム画面追加
 1. 本変更を既存リポジトリの作業ブランチにコミットしてpushし、既存main向けPRでレビューします。
 2. `npm ci`、`npm test`、`npm run lint`、`npm run build`、ブラウザテストを実行します。上記実機チェックを実施し、未実施のものは未検証として残します。
 3. PRをmainにマージします。既存のPages設定 `Deploy from a branch` → `main` / `/(root)` を維持します。ビルド用distではなくルートのindex.htmlとsrcが公開対象です。既存Actions公開の場合はそのワークフローを維持します。
-4. Pagesのデプロイ完了後、公開HTTPS URLで確認します。古いタブ / PWAを閉じて再度開き、Service Worker `respect-talk-ai-v5-dashboard` を確認します。必要なら再読み込みします。更新のためにブラウザデータを削除すると保存会話も消えるため、先に保存内容を確認してください。
+4. Pagesのデプロイ完了後、公開HTTPS URLで確認します。古いタブ / PWAを閉じて再度開き、Service Worker `respect-talk-ai-v6-open-history` を確認します。必要なら再読み込みします。更新のためにブラウザデータを削除すると保存会話も消えるため、先に保存内容を確認してください。
 
 mainへのマージ・公開更新は実行していません。変更は作業ブランチのPRで確認してください。
+
+## 保存一覧の「開く」の修正
+
+履歴が画面外に表示され、クリック結果が分からない問題を修正しました。読み込み後に履歴へスクロール・フォーカスし、発言がない記録や確認待ちだけの記録には状態を表示します。読み込みエラーは保存一覧へ表示します。保存データを削除・移行する変更はありません。PC幅と390px幅のLinux Chromiumで移動を検証済み、iPhone Safari実機は未検証です。

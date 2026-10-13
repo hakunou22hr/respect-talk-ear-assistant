@@ -34,6 +34,7 @@ export class SessionView {
   render() {
     const session = this.session; if (!session) return;
     $('#history-panel').hidden = false;
+    $('#history-state').textContent = session.conversationSession.length ? `実発言 ${session.conversationSession.length}件` : session.pendingUtterances.length ? '確定した実発言はありません。下の確認待ちを確認してください。' : session.endedAt === null ? 'まだ発言は記録されていません。' : 'この会話には認識された発言がありません。';
     $('#session-title').value = session.title;
     $('#participants').value = session.participants;
     $('#create-minutes').hidden = session.endedAt === null;
@@ -79,7 +80,16 @@ export class SessionView {
         const li = document.createElement('li'); const text = document.createElement('span');
         text.textContent = `${new Date(item.startedAt).toLocaleString('ja-JP')} / ${durationLabel(item.endedAt - item.startedAt)} / ${item.title}`;
         const open = document.createElement('button'); open.className = 'secondary'; open.textContent = '開く';
-        open.onclick = () => { if ($('#toggle-session').dataset.active === 'true' || $('#toggle-session').disabled) { this.message('現在の対話を終了してから開いてください。'); return; } this.set(ConversationSession.restore(item), item.recording); };
+        open.onclick = () => {
+          if ($('#toggle-session').dataset.active === 'true' || $('#toggle-session').disabled) { this.message('現在の対話を終了してから開いてください。'); return; }
+          try {
+            this.set(ConversationSession.restore(item), item.recording);
+            this.message(`「${this.session.title}」を開きました。会話履歴に表示しました。`);
+            const panel = $('#history-panel');
+            panel.focus({ preventScroll: true });
+            panel.scrollIntoView({ behavior: 'instant', block: 'start' });
+          } catch (error) { this.message(`会話を開けません：${error.message}。保存データは削除していません。`); }
+        };
         const remove = document.createElement('button'); remove.className = 'secondary'; remove.textContent = '削除';
         remove.onclick = async () => {
           if (!window.confirm(`「${item.title}」の会話・録音を端末から削除しますか？`)) return;

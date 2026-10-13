@@ -122,6 +122,11 @@ try {
   await page.locator('#toggle-session').click(); await page.waitForFunction(() => document.querySelector('#toggle-session').textContent === '● 対話開始');
   assert.equal(await page.locator('#pending-list li').count(), 1);
   assert.equal(await page.locator('#recording-player').isVisible(), false);
+  await page.locator('#saved-sessions li').first().getByRole('button', { name: '開く' }).click();
+  assert.match(await page.locator('#history-state').innerText(), /確定した実発言はありません/);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'history-panel');
+  assert.equal(await page.locator('#history-panel').evaluate((el) => { const r = el.getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight; }), true);
+  check('保存一覧の開くで履歴へ移動・フォーカスし、未確定だけの記録を明示');
   check('録音OFFの次セッションに過去音声を混ぜない・古い認識を無視・途中認識を保持');
   await page.locator('#saved-sessions li').last().getByRole('button', { name: '開く' }).click();
   const first = page.locator('#history-list li').first(); await first.getByRole('button', { name: '私', exact: true }).click();
@@ -141,6 +146,8 @@ try {
   await page.locator('#session-title').fill('朝の雑談'); await page.locator('#session-title').dispatchEvent('change'); await page.locator('#save-session').click();
   await page.waitForFunction(() => document.querySelector('#saved-sessions').textContent.includes('朝の雑談'));
   await page.reload(); await page.locator('#saved-sessions li').filter({ hasText: '朝の雑談' }).getByRole('button', { name: '開く' }).click();
+  assert.match(await page.locator('#session-message').innerText(), /開きました/);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'history-panel');
   assert.equal(await page.locator('#session-title').inputValue(), '朝の雑談'); assert.equal(await page.locator('#recording-player').isVisible(), true); check('再読み込み後のIndexedDB会話/録音復元');
   await page.locator('#consent').check();
   await page.locator('#toggle-session').click(); await page.waitForFunction(() => document.querySelector('#toggle-session').textContent === '■ 対話終了');
@@ -162,6 +169,11 @@ try {
   const savedRecords = await page.evaluate(async () => { const db = await new Promise((done) => { const r = indexedDB.open('respect-talk-sessions'); r.onsuccess = () => done(r.result); }); return new Promise((done) => { const r = db.transaction('sessions').objectStore('sessions').getAll(); r.onsuccess = () => { db.close(); done(r.result); }; }); });
   assert.ok(savedRecords.every((item) => item.assistantSuggestions.length === 0));
   check('保存OFFで自動保存しない、保存データにAI提案本文を含めない');
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.locator('#saved-sessions li').last().getByRole('button', { name: '開く' }).click();
+  assert.equal(await page.locator('#history-panel').evaluate((el) => { const r = el.getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight; }), true);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'history-panel');
+  check('PCでも保存一覧から履歴へ確実に移動');
   const savedCount = await page.locator('#saved-sessions li').count();
   page.once('dialog', (dialog) => dialog.accept()); await page.locator('#saved-sessions li').last().getByRole('button', { name: '削除' }).click();
   await page.waitForFunction((count) => document.querySelectorAll('#saved-sessions li').length === count, savedCount - 1); check('セッションと録音を端末保存から削除');

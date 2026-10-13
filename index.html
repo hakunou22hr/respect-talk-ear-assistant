@@ -17,7 +17,34 @@
       <header><span class="eyebrow">EAR-SIDE CONVERSATION COACH</span><h1>Respect Talk <em>AI</em></h1><p>相手の声から返す言葉まで、その場でサポートします。</p></header>
       <section class="session-banner" aria-live="polite"><strong id="elapsed">00:00:00</strong><span id="recording-status">録音OFF</span></section>
 
-      <section class="card ai-card" aria-labelledby="ai-title">
+<div class="dashboard"><div class="input-column"><section class="card meter-card" aria-labelledby="meter-title">
+        <div class="row"><h2 id="meter-title">マイク入力レベル</h2><strong id="mic-percent">0%</strong></div>
+        <div id="mic-meter" class="meter" role="meter" aria-label="マイク入力レベル" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+      </section><section class="status-panel" aria-live="polite">
+        <p class="panel-kicker">現在状態</p>
+        <div id="status-icon" class="status-icon">🎙</div>
+        <p id="status-label" class="status-label">待機中</p>
+        <p id="status-help">イヤホンを確認して、対話サポートを開始してください</p>
+        <div class="pulse" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+      </section><section class="card transcript-card" aria-live="polite">
+        <h2>🎙 認識した発言</h2>
+        <p id="transcript" class="transcript empty">まだ認識されていません</p>
+      </section><section id="history-panel" class="card" hidden>
+        <h2>会話履歴</h2>
+        <label>タイトル <input id="session-title" maxlength="80"></label>
+        <label>参加者 <input id="participants" maxlength="200" value="相手、私"></label>
+        <ol id="history-list"></ol>
+        <section id="pending-panel" hidden><h3>読み上げ中の発言・確認待ち</h3><p class="small">AI音声か実発言かを確認してください。確定するまで会話全文・議事録・AI文脈に含めません。自動では削除しません。</p><ol id="pending-list"></ol></section>
+        <label for="actual-input">実際に話した発言を補記（上の話者を使用）</label>
+        <textarea id="actual-input" rows="2" placeholder="録音除外区間などの実発言だけを入力"></textarea>
+        <button id="add-utterance" class="secondary wide">実発言を追加</button>
+        <p id="recording-gaps" class="small"></p>
+        <audio id="recording-player" controls hidden></audio>
+        <label>要約の種類 <select id="summary-level"><option value="brief">要点だけ</option><option value="standard" selected>標準要約</option><option value="detailed">詳細議事録</option></select></label>
+        <button id="create-minutes" class="primary wide" hidden>議事録を作成</button>
+        <pre id="minutes-output"></pre>
+        <button id="save-session" class="primary wide" hidden>保存</button>
+      </section></div><div class="assistant-column"><section class="card ai-card" aria-labelledby="ai-title">
         <div class="row"><h2 id="ai-title">AIモード</h2><strong id="ai-mode" class="mode-badge rule">🔵 ルールベース</strong></div>
         <details id="model-options"><summary>モデル準備・診断モード</summary>
         <p id="capability-result" class="small">端末の機能を確認中です。</p>
@@ -26,59 +53,29 @@
         <div id="model-progress-wrap" hidden><div class="meter"><span id="model-progress"></span></div><p id="model-progress-label" class="progress-label">0%</p></div>
         <label class="mode-select">開発・診断用モード <select id="mode-select"><option value="auto">自動（生成AI優先）</option><option value="local">ローカル生成AI</option><option value="rule">ルールベース</option></select></label>
         </details>
-      </section>
-
-      <section class="card connection-card" aria-labelledby="connection-title">
+      </section><section class="card analysis-card" aria-live="polite">
+        <div class="result-heading"><h2>🧠 AI判断</h2><span id="category-badge" class="badge">未判定</span></div>
+        <dl><div><dt>感情</dt><dd id="emotion">—</dd></div><div><dt>会話意図</dt><dd id="intent">—</dd></div><div><dt>相手が求めていること</dt><dd id="need">—</dd></div><div><dt>推奨</dt><dd id="action">—</dd></div></dl>
+      </section><section class="card connection-card" aria-labelledby="connection-title">
         <h2 id="connection-title">接続確認</h2>
-        <p>BluetoothイヤホンはiPhoneの設定で接続してください。</p>
-        <p class="small">このWebアプリは、iOSが選択している音声出力先を利用します。</p>
-      </section>
-
-      <button id="audio-test" class="test-button">🔊 イヤホン音声テスト</button>
-
-      <section class="session-controls" aria-label="対話サポート操作">
+        <p>BluetoothイヤホンはWindows / iPhoneの設定で接続してください。</p>
+        <p class="small">出力の優先順：Bluetooth → 有線イヤホン → 端末。ブラウザは接続状態・出力先を指定できません。OSで選択し、試聴で確認してください。<br><strong id="output-status">実際の出力先：未確認</strong><button id="confirm-output" class="secondary wide" type="button">選んだ出力先で音が聞こえた</button></p>
+      </section><button id="audio-test" class="test-button">🔊 イヤホン音声テスト</button><section class="card replies-card" aria-live="polite">
+        <h2>🎧 耳元提案</h2>
+        <p id="suggestions">返答は画面に表示せず、1つだけ音声で届けます。</p>
+        <label class="switch-row">自動読み上げ <input id="auto-speak" type="checkbox" checked><span>ON / OFF</span></label>
+      </section><section class="card speech-card" aria-live="polite">
+        <h2>音声出力</h2><label>音声速度 <input id="speech-rate" type="range" min="0.7" max="1.5" step="0.05" value="1.05"><output id="rate-value">1.05倍</output></label><label>音量 <input id="speech-volume" type="range" min="0" max="1" step="0.1" value="1"><output id="volume-value">100%</output></label><p id="speech-status" class="diagnostic-value">待機</p>
+      </section><section class="session-controls" aria-label="対話サポート操作">
         <button id="toggle-session" class="primary wide">● 対話開始</button>
+        <label class="switch-row">参加者全員の音声認識・保存への同意を確認 <input id="consent" type="checkbox"></label>
+        <label class="switch-row">会話を端末に保存 <input id="save-enabled" type="checkbox"><span>ON / OFF</span></label>
         <label class="switch-row">録音（次の対話から） <input id="record-enabled" type="checkbox"><span>ON / OFF</span></label>
         <label>次の実発言の話者 <select id="next-speaker"><option value="partner">相手（推定・修正可）</option><option value="self">私（手動指定）</option><option value="unknown">未確認</option></select></label>
         <button id="speak-self" class="secondary wide" disabled>私が話す（AI読み上げを停止）</button>
         <p class="small">1台のマイクによる自動話者分離はできません。既定は相手の推定です。各発言で修正してください。</p>
         <p id="support-note" class="support-note" role="alert" hidden></p>
-      </section>
-
-      <section class="card meter-card" aria-labelledby="meter-title">
-        <div class="row"><h2 id="meter-title">マイク入力レベル</h2><strong id="mic-percent">0%</strong></div>
-        <div id="mic-meter" class="meter" role="meter" aria-label="マイク入力レベル" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
-      </section>
-
-      <section class="status-panel" aria-live="polite">
-        <p class="panel-kicker">現在状態</p>
-        <div id="status-icon" class="status-icon">🎙</div>
-        <p id="status-label" class="status-label">待機中</p>
-        <p id="status-help">イヤホンを確認して、対話サポートを開始してください</p>
-        <div class="pulse" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-      </section>
-
-      <section class="card transcript-card" aria-live="polite">
-        <h2>🎙 認識した発言</h2>
-        <p id="transcript" class="transcript empty">まだ認識されていません</p>
-      </section>
-
-      <section class="card analysis-card" aria-live="polite">
-        <div class="result-heading"><h2>🧠 AI判断</h2><span id="category-badge" class="badge">未判定</span></div>
-        <dl><div><dt>感情</dt><dd id="emotion">—</dd></div><div><dt>会話意図</dt><dd id="intent">—</dd></div><div><dt>相手が求めていること</dt><dd id="need">—</dd></div><div><dt>推奨</dt><dd id="action">—</dd></div></dl>
-      </section>
-
-      <section class="card replies-card" aria-live="polite">
-        <h2>🎧 耳元提案</h2>
-        <ol id="suggestions"><li class="placeholder">まだ返答案はありません</li></ol>
-        <label class="switch-row">自動読み上げ <input id="auto-speak" type="checkbox" checked><span>ON / OFF</span></label>
-      </section>
-
-      <section class="card speech-card" aria-live="polite">
-        <h2>読み上げ状態</h2><p id="speech-status" class="diagnostic-value">待機</p>
-      </section>
-
-      <section class="card diagnostics" aria-labelledby="diagnostics-title">
+      </section></div></div><section class="card diagnostics" aria-labelledby="diagnostics-title">
         <div class="section-title"><div><span class="eyebrow">LIVE DIAGNOSTICS</span><h2 id="diagnostics-title">音声診断</h2></div><span class="live-dot">LIVE</span></div>
         <div class="diagnostic-grid">
           <div><span>マイク</span><strong id="mic-status">未許可</strong></div>
@@ -97,30 +94,11 @@
           <div><span>SpeechSynthesis</span><strong id="tts-event">待機</strong></div>
         </div>
         <p id="diagnostic-message" class="diagnostic-message">開始ボタンを押すと各段階を確認できます。</p>
-      </section>
-
-      <section class="card demo-card">
+      </section><section class="card demo-card">
         <div class="section-title"><div><span class="eyebrow">WITHOUT A MICROPHONE</span><h2>手動解析テスト</h2></div><span>🧪</span></div>
         <label for="demo-input">テスト文章を入力</label>
         <textarea id="demo-input" rows="3" placeholder="今日仕事で失敗して落ち込んでいるんだ">今日仕事で失敗して落ち込んでいるんだ</textarea>
-        <div class="demo-actions"><button id="run-demo" class="primary">解析テスト</button><button id="speak-demo" class="secondary" disabled>候補1をイヤホンで聞く</button></div>
-      </section>
-
-      <section id="history-panel" class="card" hidden>
-        <h2>会話履歴</h2>
-        <label>タイトル <input id="session-title" maxlength="80"></label>
-        <label>参加者 <input id="participants" maxlength="200" value="相手、私"></label>
-        <ol id="history-list"></ol>
-        <section id="pending-panel" hidden><h3>読み上げ中の発言・確認待ち</h3><p class="small">AI音声か実発言かを確認してください。確定するまで会話全文・議事録・AI文脈に含めません。自動では削除しません。</p><ol id="pending-list"></ol></section>
-        <label for="actual-input">実際に話した発言を補記（上の話者を使用）</label>
-        <textarea id="actual-input" rows="2" placeholder="録音除外区間などの実発言だけを入力"></textarea>
-        <button id="add-utterance" class="secondary wide">実発言を追加</button>
-        <p id="recording-gaps" class="small"></p>
-        <audio id="recording-player" controls hidden></audio>
-        <label>要約の種類 <select id="summary-level"><option value="brief">要点だけ</option><option value="standard" selected>標準要約</option><option value="detailed">詳細議事録</option></select></label>
-        <button id="create-minutes" class="primary wide" hidden>議事録を作成</button>
-        <pre id="minutes-output"></pre>
-        <button id="save-session" class="primary wide" hidden>保存</button>
+        <div class="demo-actions"><button id="run-demo" class="primary">解析テスト</button><button id="speak-demo" class="secondary" disabled>テスト返答を聞く</button></div>
       </section>
       <section class="card saved-card"><h2>端末内の保存一覧</h2><p id="session-message" role="status"></p><ol id="saved-sessions"></ol></section>
       <section class="card privacy-card"><h2>音声・保存の制約</h2><p class="small">会話と録音は端末内のIndexedDBに保存し、外部AI APIへ送りません。ブラウザ標準SpeechRecognitionはベンダーのサーバーへ音声を送る場合があり、完全な端末内処理を保証できません。モデル準備時は配布元へ通信します。</p><p class="small">Bluetooth出力はiOSで選択してください。AI読み上げ中は録音を一時停止し、除外区間を記録します。その間の実音声は録音されませんが、認識結果は確認待ちとして保持します。マイクへの音漏れ・認識停止・Bluetooth切替の影響を完全には分離できません。「私が話す」で読み上げを止め、録音を再開できます。ブラウザの終了・容量不足・OSによる削除で保存を失う可能性があります。</p></section>

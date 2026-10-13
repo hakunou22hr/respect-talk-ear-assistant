@@ -100,3 +100,23 @@ summary { cursor: pointer; padding: .6rem 0; color: #a8c0cf; }
 #recording-status.recording { color: #ff9393; font-weight: bold; }
 @media (max-width: 520px) { .session-controls { position: static !important; } h1 { font-size: 2.4rem; } .session-controls select { max-width: 100%; } }
 @media (max-width: 520px) { .analysis-card dl { grid-template-columns: 1fr 1fr; } }
+
+/* Two-column live dashboard; secondary tools remain below. */
+.shell { width: min(1440px, 100%); }
+.dashboard { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 1rem; }
+.dashboard > div { min-width: 0; }
+.dashboard .card, .dashboard .status-panel { padding: .85rem; margin-bottom: .6rem; }
+.status-panel { padding: .7rem !important; }
+.status-icon, .pulse, .panel-kicker { display: none; }
+.status-label { font-size: 1.35rem; margin: .3rem; }
+#status-help { margin: .3rem; font-size: .8rem; }
+.analysis-card dl { grid-template-columns: 1fr 1fr; }
+#history-list { max-height: 300px; overflow-y: auto; }
+.session-controls { background: #071521; border-radius: 14px; padding: .6rem; }
+input[type="range"] { width: 100%; accent-color: #57e3c2; }
+#history-panel label, #history-panel button { font-size: .8rem; }
+@media (max-width: 760px) {
+  .dashboard { grid-template-columns: 1fr; }
+  .shell { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+  #toggle-session { position: fixed; left: 1rem; bottom: max(.7rem, env(safe-area-inset-bottom)); width: calc(100% - 2rem); z-index: 10; box-shadow: 0 0 0 10px #071521; }
+}

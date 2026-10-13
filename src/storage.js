@@ -22,7 +22,7 @@ export class SessionStore {
       transaction.onabort = () => reject(transaction.error || new Error('端末内保存に失敗しました'));
     });
   }
-  save(session, recording = null) { return this.run('readwrite', (store) => store.put({ ...session, recording })); }
+  save(session, recording = null) { return this.run('readwrite', (store) => store.put({ ...session, assistantSuggestions: [], recording })); }
   list() { return this.run('readonly', (store) => store.getAll()).then((items) => items.sort((a, b) => b.startedAt - a.startedAt)); }
   delete(id) { return this.run('readwrite', (store) => store.delete(id)); }
 }
